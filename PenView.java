@@ -1,5 +1,7 @@
 package in.andante.drawbm;
 
+import in.andante.drawbm.Main;
+import in.andante.drawbm.Pos;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -26,15 +28,12 @@ import android.view.View;
 import android.widget.Toast;
 
 public class PenView extends View {
+	
 	private float oldx = 0f;//書き始めx座標
 	private float oldy = 0f;//書き始めy座標
 	private float nextx = 0f;//途中x座標
 	private float nexty = 0f;//途中y座標
-	private float eventDuration2 = 0f;//タッチ時間
 	private float pressure;//筆圧
-	/*private double distance;//2点間距離
-	private double radian;//2点間角度（ラジアン）
-	private double ra;//2点間角度（度）*/
 	private Bitmap bmp = null;
 	private Canvas bmpCanvas;
 	private Paint paint;
@@ -42,12 +41,11 @@ public class PenView extends View {
 	public Activity _context;
 	public List<Pos> posList;//Posクラスの座標データを扱うリスト
  
-public PenView(Context context) {//コンストラクタ
+public PenView(Context context) {
 	
 	super(context);
 	_context = (Activity)context;
-	
-	//画面描写
+	/*画面描写*/
 	paint = new Paint();
 	paint.setColor(Color.BLACK);
 	paint.setAntiAlias(true);
@@ -55,17 +53,18 @@ public PenView(Context context) {//コンストラクタ
 	paint.setStrokeWidth(20);
 	paint.setStrokeCap(Paint.Cap.ROUND);
 	paint.setStrokeJoin(Paint.Join.ROUND);
-	//文字描写
+	/*文字描写*/
 	paint1 = new Paint();//メモリ消費するかも
 	paint1.setAntiAlias(true);
 	paint1.setTextSize(40);
 	paint1.setColor(Color.BLACK);
-	
+	/*Posクラス用*/
 	this.posList = new ArrayList<Pos>();//ArrayList<型> 変数名 = new ArrayList<型>()　型はクラス
 	
 }
  
-protected void onSizeChanged(int w, int h, int oldw, int oldh) {//Bitmap
+/*Bitmap*/
+protected void onSizeChanged(int w, int h, int oldw, int oldh) {
 	
 	super.onSizeChanged(w,h,oldw,oldh);
 	bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -73,7 +72,8 @@ protected void onSizeChanged(int w, int h, int oldw, int oldh) {//Bitmap
 	bmpCanvas.drawColor(0xFFFFFFFF);//Black
 
 }
- 
+
+/*Canvas*/
 public void onDraw(Canvas canvas) {//Canvas
 	
 	canvas.drawBitmap(bmp, 0, 0, null);//描写
@@ -84,15 +84,18 @@ public void onDraw(Canvas canvas) {//Canvas
 }
 
 ////////////////////////動作ごと//////////////////////////////////////////
+
+/*指を話した場合*/
 @Override
-public boolean performClick(){//指を離した場合
-    
+public boolean performClick(){
+	
 	super.performClick();
     return true;
-
+    
 }
 
-public boolean onTouchEvent(MotionEvent e){//指が触れた場合
+/*指が触れた場合*/
+public boolean onTouchEvent(MotionEvent e){
 
 	switch(e.getAction()){
 		case MotionEvent.ACTION_DOWN: //最初のポイント
@@ -119,106 +122,87 @@ public boolean onTouchEvent(MotionEvent e){//指が触れた場合
 		default:
 			break;
 	}
+	
 	return true;
 	
 }
- 
-public void clearDrawList(){//クリア処理
+
+////////////////////////動作ごと//////////////////////////////////////////
+
+/*クリア処理*/
+public void clearDrawList(){
 	
 	bmpCanvas.drawColor(Color.WHITE);
 	invalidate();
 	this.posList.clear();//PosListクリア
 	pressure=0;
-	/*eventDuration2=0;
-	distance=0;
-	radian=0;
-	ra=0;*/
 
 }
 
-public void insert(){//データベースにデータ挿入
-	
-	ContentValues values = new ContentValues();//テーブルに含まれるカラムをキーとし、カラムに対して設定したい値をペアとして保存する
-	DBHelper db0 = new DBHelper(_context);
-	SQLiteDatabase db1 = db0.getWritableDatabase();//読み書き用
-	long id = 0;
-	
-    try{
-    	for(Pos p : this.posList){//posにデータ追加
-    		values.put("X", p.X);
-            values.put("Y", p.Y);
-            values.put("z_pressure",p.pressure);
-		}
-    	db1.insert("account", null, values);
-    }
-    finally{
-        db1.close();
-    }
-    
-    //成功or失敗メッセージ
-    if (id == -1) {  
-        Toast.makeText(_context, "Insert失敗", Toast.LENGTH_SHORT).show();  
-    } else {   
-        Toast.makeText(_context, "Insert成功", Toast.LENGTH_SHORT).show();  
-    }     
-    
-}
- 
+/*保存処理*/
 public void saveToFile(){
 	
-	//認識されない場合
+	//外部ストレージ使用不可能な場合
 	if(!sdcardWriteReady()){
 		Toast.makeText(_context, "SDcardが認識されません。", Toast.LENGTH_SHORT).show();
 		return;
 	}
-	//認識された場合
+	
+	//外部ストレージ使用可能な場合
 	try{
-		
-		File file0 = new File(Environment.getExternalStorageDirectory().getPath()+"/DrawBmData/");//画像用
-		
-		try{
-			if(!file0.exists()){//ファイルが存在しなければ作成
-				file0.mkdir();
+			String folderPath0 = Environment.getExternalStorageDirectory().getPath()+ "/DrawBmData/";//画像用パス
+			File folder0 = new File(folderPath0);
+	
+			if(!folder0.exists()){//画像用フォルダが存在しなければ作成
+				folder0.mkdirs();
 			}
-		}catch(SecurityException e){}
- 	
-		// 日付でファイル名を作成　
-		Date mDate = new Date();
-		SimpleDateFormat fileName = new SimpleDateFormat("yyyy_MM_dd'at'HH_mm_ss",Locale.US);//US時刻
-	 
-		FileOutputStream fos0 = new FileOutputStream(new File(file0, fileName.format(mDate) + ".jpg"));//画像用
+	
+			String folderPath1 = Environment.getExternalStorageDirectory().getPath()+ "/DrawBmCSV/";//csv用パス
+	        File folder1 = new File(folderPath1);
+	        if (!folder1.exists()) {//csv用フォルダが存在しなければ作成
+	            folder1.mkdirs();
+	        }
+	 	
+			/*日付でファイル名を作成*/
+			Date mDate = new Date();
+			SimpleDateFormat fileName = new SimpleDateFormat("yyyy_MM_dd'at'HH_mm_ss",Locale.US);
+		 
+			/*画像用*/
+			FileOutputStream fos0 = new FileOutputStream(new File(folder0, fileName.format(mDate) + ".jpg"));
+			bmp.compress(CompressFormat.JPEG, 100, fos0);
+			
+			/*csv用*/
+			FileWriter fw = new FileWriter(folderPath1+fileName.format(mDate)+".csv");
+			PrintWriter pw = new PrintWriter(new BufferedWriter(fw));
+			
+			/*csvファイルへの出力処理*/
+			for(Pos p : this.posList){//リストへデータを追加
+				pw.print(p.X);
+				pw.print(",");
+				pw.print(p.Y);
+				pw.print(",");
+				pw.print(p.pressure);
+				pw.print("\n");
+			}
+			
+			fos0.flush();
+			fos0.close();
+			pw.close();
+			
+			Toast.makeText(_context, "Saved!", Toast.LENGTH_SHORT).show();
 		
-		FileWriter fw = new FileWriter(Environment.getExternalStorageDirectory().getPath()+"/DrawBmCSV/"+fileName.format(mDate)+".csv");
-		PrintWriter pw = new PrintWriter(new BufferedWriter(fw));
-		
-		bmp.compress(CompressFormat.JPEG, 100, fos0);
-		
-		for(Pos p : this.posList){//posへ追加
-			pw.print(p.X);
-			pw.print(",");
-			pw.print(p.Y);
-			pw.print(",");
-			pw.print(p.pressure);
-			pw.print("\n");
-		}
-		
-		fos0.flush();
-		fos0.close();
-		pw.close();
-		
-		Toast.makeText(_context, "Saved!", Toast.LENGTH_SHORT).show();
-		
-	} catch(Exception e) {
-		Toast.makeText(_context, "Error!", Toast.LENGTH_SHORT).show();
+		} catch(Exception e) {
+			Toast.makeText(_context, "Error!", Toast.LENGTH_SHORT).show();
 		
 	}
 	
 }
 
+/*外部ストレージの状態の問い合わせ*/
 private boolean sdcardWriteReady(){
 	
 	 String state = Environment.getExternalStorageState();
-	 return (Environment.MEDIA_MOUNTED.equals(state));
+	 return (Environment.MEDIA_MOUNTED.equals(state));//戻り値が、MEDIA_MOUNTEDならばファイルの読み書きは可能
 
 }
 
